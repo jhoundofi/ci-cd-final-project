@@ -1,0 +1,51 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: remove
+      image: alpine:3
+      env:
+        - name: WORKSPACE_SOURCE_PATH
+          value: $(workspaces.source.path)
+      workingDir: $(workspaces.source.path)
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        echo "Removing all files from ${WORKSPACE_SOURCE_PATH} ..."
+        if [ -d "${WORKSPACE_SOURCE_PATH}" ] ; then
+          rm -rf "${WORKSPACE_SOURCE_PATH:?}"/*
+          rm -rf "${WORKSPACE_SOURCE_PATH}"/.[!.]*
+          rm -rf "${WORKSPACE_SOURCE_PATH}"/..?*
+        fi
+--- # <--- Separator for multiple Kubernetes resources in one file
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: nose # Name of the Tekton Task
+spec:
+  workspaces:
+    - name: source # Defines a workspace named 'source' for the task to operate on
+  params: # Parameters that can be passed to this Task
+    - name: args
+      description: Arguments to pass to nose
+      type: string
+      default: "-v" # Default value for the 'args' parameter
+  steps:
+    - name: nosetests # Name of the single step within the task
+      image: python:3.9-slim # Uses a Python 3.9 slim image as the environment
+      workingDir: $(workspaces.source.path) # Sets the working directory for the script to the workspace path
+      script: | # The shell script to execute
+        #!/bin/bash
+        set -e # Exit immediately if a command exits with a non-zero status
+        python -m pip install --upgrade pip wheel # Upgrade pip and install wheel for faster installs
+        pip install -r requirements.txt # Install application dependencies
+        pip install nose coverage # <--- Don't forget to install nose and coverage in this task as well
+        nosetests $(params.args) # Run nosetests, passing the 'args' parameter

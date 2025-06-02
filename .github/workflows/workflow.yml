@@ -1,0 +1,35 @@
+name: CI workflow
+
+on:
+  push:
+    branches:
+      - main # Trigger on push to the main branch
+  pull_request:
+    branches:
+      - main # Trigger on pull request to the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # The type of runner to use (a virtual machine)
+    container: python:3.9-slim # Specifies the Docker image to use as the build environment
+
+    steps:
+      - name: Checkout code # A descriptive name for this step
+        uses: actions/checkout@v3 # An action that checks out your repository code
+
+      - name: Install dependencies # A descriptive name for this step
+        run: | # The 'run' keyword executes commands in the container
+          python -m pip install --upgrade pip # Upgrades pip
+          pip install -r requirements.txt # Installs project dependencies from requirements.txt
+
+
+      - name: Lint with flake8 # <--- New Linting step
+        run: |
+          # First flake8 command: checks for syntax errors, undefined names, etc.
+          flake8 service --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Second flake8 command: checks for complexity and line length
+          flake8 service --count --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run unit tests with nose # <--- New Test step
+        run: |
+          nosetests -v --with-spec --spec-color --with-coverage --cover-package=app
